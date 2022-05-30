@@ -1,13 +1,13 @@
 # plot-publication
 This repo could automatically adjust **figure/subfigure size** to fit the page that you want to insert the figure. In this way, the figure is presented as intended without being stretched and squeezed.
 
-![](figures\Picture1.png)
+![](figures/Picture1.png)
 
 # Why do we need this package?
 
 When I write a manuscript, I always have to spend many time and effort adjusting the figure size. This is because the figure is often stretched or squeezed after being inserted into a page, caused by inconsistent size (usually the width) between the figure and the page. One direct negative effect is that the font size of labels, ticks, and legends is changed, as shown in the following figure. Although manually setting the figure size according to the page size can solve this problem, this work is laborious and the verbose code that adjusts figure size hampers the readability. That's why I decided to develop this package.
 
-![](figures\Picture2.svg)
+![](figures/Picture2.svg)
 
 # Getting Started
 
