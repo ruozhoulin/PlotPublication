@@ -38,4 +38,4 @@ It should be noted that `FigurePublication()` create a figure and set its size a
 
 # Examples
 
-Please refer to `examples.ipynb`.
+Please refer to [this example](examples.ipynb).
