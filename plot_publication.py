@@ -250,13 +250,13 @@ class FigurePublication:
         if dpi is None:
             dpi = self.__dpi
 
-        # Warning: only the given portion of the figure is saved
-        # This will change size of the figure
-        # if bbox_inches is None:
-        #     bbox_inches = self.__bbox_inches
-        # self.fig.savefig(savename, bbox_inches=bbox_inches, dpi=dpi)
+        # ! Warning: only the given portion of the figure is saved
+        # ! This will change size of the figure when saving
+        if bbox_inches is None:
+            bbox_inches = self.__bbox_inches
+        self.fig.savefig(savename, bbox_inches=bbox_inches, dpi=dpi)
 
-        self.fig.savefig(savename, dpi=dpi)
+        # self.fig.savefig(savename, dpi=dpi)
 
     def change_page(self, newpage=PageSlide()):
         # modify paper size, such as from A4 to a slide in 16:9
@@ -282,6 +282,22 @@ def legend(ax):
     ax.legend(frameon=False)  # remove legend background
 
 
+def legend_subplot(fig, lines: list, labels: list[str], height_ratio=1.03, label_per_row=8) -> None:
+    # add a legend for all plot
+    # https://stackoverflow.com/questions/27016904/matplotlib-legends-in-subplot
+    # https://matplotlib.org/stable/gallery/text_labels_and_annotations/legend_demo.html
+
+    fig.legend(
+        lines,
+        labels,
+        loc="upper center",
+        frameon=False,
+        # distance to center of the text box (both horizontal and vertical)
+        bbox_to_anchor=(0.5, height_ratio),
+        ncol=label_per_row,
+    )
+
+
 def set_tick_number_x(tick_number: int, ax) -> None:
     loc = MaxNLocator(tick_number)
     ax.xaxis.set_major_locator(loc)
@@ -290,6 +306,69 @@ def set_tick_number_x(tick_number: int, ax) -> None:
 def set_tick_number_y(tick_number: int, ax) -> None:
     loc = MaxNLocator(tick_number)
     ax.yaxis.set_major_locator(loc)
+
+
+def cornor_annotate(
+    ax,
+    text: str,
+    ratio: float = 0.02,
+    text_size: float = 10,
+    horizontal: str = "left",
+    vertical: str = "top",
+):
+    # control distance from top left corner
+
+    # get proper position for text
+    if horizontal == "left" and vertical == "top":
+        x_min, x_max = ax.get_xlim()
+        y_min, y_max = ax.get_ylim()
+        x_range = x_max - x_min
+        y_range = y_max - y_min
+        # coordinate of top left corner of the text box
+        x = x_min + ratio * x_range
+        y = y_max - ratio * y_range
+    else:
+        raise ValueError("Not finished yet.")
+
+    ax.text(x, y, text, size=text_size, horizontalalignment=horizontal, verticalalignment=vertical)
+
+
+def more_space(ax, direction: str, ratio: float = 0.1) -> None:
+    # leave more space at certain direction of an ax, usually for add a figure index or legend
+    assert direction in ["left", "right", "top", "bottom"]
+
+    xmin, xmax = ax.get_xlim()
+    xRange = xmax - xmin
+    dx = ratio * xRange
+    ymin, ymax = ax.get_ylim()
+    yRange = ymax - ymin
+    dy = ratio * yRange
+
+    if direction == "left":
+        ax.set_xlim(xmin - dx, xmax)
+    elif direction == "right":
+        ax.set_xlim(xmin, xmax + dx)
+    elif direction == "top":
+        ax.set_ylim(ymin, ymax + dy)
+    elif direction == "bottom":
+        ax.set_ylim(ymin - dy, ymax)
+    else:
+        raise ValueError()
+
+
+def set_equal_ylim(ax_list: list):
+    # usually for hiding shared y-axis when plotting 3x3, 4x4 figure
+
+    # * find maximum limits of y axis for all axes in ax_list
+    ymin = 1e8
+    ymax = -1e8
+    for ax in ax_list:
+        ymin = min(ymin, ax.get_ylim()[0])
+        ymax = max(ymax, ax.get_ylim()[1])
+
+    # * set to all
+    for ax in ax_list:
+        ax.set_ylim(ymin, ymax)
 
 
 # * check whether font exist
