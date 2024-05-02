@@ -10,32 +10,44 @@
 quality figures for publication
 -------------------------------------------------
 """
+import numpy as np
+from numpy.typing import NDArray
 
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
 import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator, MultipleLocator, AutoMinorLocator
+import matplotlib.figure
+from matplotlib.transforms import ScaledTranslation
 
 # * ====================================================================
+# * set default properties
+rc = matplotlib.rcParams
+
 # * Set font's properties.
 # ! You must use from `PLOT_academic import *` to enable font size setting
 SMALL_SIZE = 8
 MEDIUM_SIZE = 10
 BIGGER_SIZE = 12
 
-# controls default text sizes
+# set default font
 font = {"family": "Times New Roman", "weight": "normal", "size": SMALL_SIZE}  # bold
 matplotlib.rc("font", **font)
-# fontsize of the axes title, namely title of subplot
-plt.rc("axes", titlesize=MEDIUM_SIZE)
-plt.rc("axes", labelsize=MEDIUM_SIZE)  # fontsize of the x and y labels
-plt.rc("xtick", labelsize=SMALL_SIZE)  # fontsize of the tick labels
-plt.rc("ytick", labelsize=SMALL_SIZE)  # fontsize of the tick labels
-plt.rc("legend", fontsize=SMALL_SIZE)  # legend fontsize
-plt.rc("figure", titlesize=BIGGER_SIZE)  # fontsize of the figure title
-# * =====================================================================
+
+# set font for other objects
+rc["axes.titlesize"] = MEDIUM_SIZE  # title of each sub-figure
+rc["axes.labelsize"] = MEDIUM_SIZE
+rc["xtick.labelsize"] = SMALL_SIZE
+rc["ytick.labelsize"] = SMALL_SIZE
+rc["legend.fontsize"] = SMALL_SIZE
+rc["figure.titlesize"] = BIGGER_SIZE  # title of the whole figure
+
 # set latex font
-matplotlib.rcParams["mathtext.fontset"] = "cm"
-matplotlib.rcParams["mathtext.rm"] = "serif"
+rc["mathtext.fontset"] = "cm"
+rc["mathtext.rm"] = "serif"
+
+# * Set ...
+rc["xtick.minor.width"] = 0.4
+# * ====================================================================
 
 
 class UnitTex:
@@ -53,11 +65,18 @@ class UnitTex:
         return "$\mathrm{%s}$" % (unit_time)
 
     @classmethod
-    def area(cls, length: str) -> str:
+    def length(cls, length: str) -> str:
         assert length in cls.length_options
 
         unit_length = "%s" % length
         return "$\mathrm{%s}$" % (unit_length)
+
+    @classmethod
+    def area(cls, length: str) -> str:
+        assert length in cls.length_options
+
+        unit_length = "%s" % length
+        return "$\mathrm{%s^{2}}$" % (unit_length)
 
     @classmethod
     def velocity(cls, length: str, time: str) -> str:
@@ -193,79 +212,145 @@ class PageSlide(Page):
 
 
 class FigurePublication:
-    def __init__(self, nrows, ncols, page=PageA4(), xrate=None, yrate=None, tightLayout=True) -> None:
-        self.__bbox_inches = "tight"
-        # 300 is usually minimum requirement for high resolution images, 600 is better
-        self.__dpi = 300
+
+    # * only need to define width because height will be automatically adjusted by `ax.set_box_aspect(1)`
+    dimension_scale = (
+        ((0.6, 0.30), (1.0, 1.00), (1.0, 1.00), (1.0, 1.00)),
+        ((1.0, 0.55), (1.0, 0.55), (1.0, 0.55), (1.0, 0.55)),
+        # ((1.0, 1.00), (1.0, 1.00), (1.0, 1.00), (1.0, 1.00)),
+        ((1.0, 1.00), (1.0, 1.00), (1.0, 1.00), (1.0, 1.00)),
+        ((1.0, 1.00), (1.0, 1.00), (1.0, 1.00), (1.0, 1.00)),
+    )
+
+    def __init__(
+        self,
+        row_count,
+        col_count,
+        page=PageA4(),
+        rate_x=None,
+        rate_y=None,
+        is_constrained_layout_enabled=True,  # if this is enable, fig.tight_layout() is not needed.
+    ) -> None:
         self.page: Page = page
-        self.__nrows = nrows
-        self.__ncols = ncols
-        self.fig, self.ax = plt.subplots(nrows, ncols)
-        self.tightLayout = tightLayout
-        self.arrange(xrate, yrate)
+        self.__row_count = row_count
+        self.__col_count = col_count
+        self.fig: matplotlib.figure.Figure
+        self.ax: list[plt.Axes]  # it should be an numpy array
+        self.fig, self.ax = plt.subplots(
+            row_count, col_count, constrained_layout=is_constrained_layout_enabled
+        )
+
+        self.set_figure_size(rate_x, rate_y)
 
         # make sure the height of each sub-figure equals the width
-        if ncols > 1:
+        # note that box aspect is different from axes aspect
+        # former is for spines' shape but the latter is for axis value.
+        if col_count > 1:
             for ax in self.ax.flatten():  # convert to 1d array
                 ax.set_box_aspect(1)
 
-    def arrange(self, xrate=None, yrate=None):
+    def get_proper_fig_size(self, rate_x=None, rate_y=None):
         """Automatically set size of the figure according to the page size and figure content.
         You can also do this manually by setting `xrate` and `yrate`.
         """
-        # this rate is for sub-figure with full x-y labels
-        # xy = (
-        #     ((0.6, 0.30), (1.0, 0.28), (1.0, 0.25), (1.0, 0.25)),
-        #     ((1.0, 0.55), (1.0, 0.55), (1.0, 0.55), (1.0, 0.55)),
-        #     ((1.0, 0.80), (1.0, 0.80), (1.0, 0.80), (1.0, 0.80)),
-        #     ((1.0, 1.00), (1.0, 1.00), (1.0, 1.00), (1.0, 1.00)),
-        # )
-        # * only need to define width because height will be automatically adjusted by `ax.set_box_aspect(1)`
-        xy = (
-            ((0.6, 0.30), (1.0, 1.00), (1.0, 1.00), (1.0, 1.00)),
-            ((1.0, 0.55), (1.0, 0.55), (1.0, 0.55), (1.0, 0.55)),
-            # ((1.0, 1.00), (1.0, 1.00), (1.0, 1.00), (1.0, 1.00)),
-            ((1.0, 1.00), (1.0, 1.00), (1.0, 1.00), (1.0, 1.00)),
-            ((1.0, 1.00), (1.0, 1.00), (1.0, 1.00), (1.0, 1.00)),
-        )
-        xrate1, yrate1 = xy[self.__nrows - 1][self.__ncols - 1]
+        # compute rate for x and y
+        if self.__row_count <= 4 and self.__col_count <= 4:
+            rate_x1, rate_y1 = self.dimension_scale[self.__row_count - 1][self.__col_count - 1]
+        else:
+            rate_x1, rate_y1 = 1.0, 1.0
         # Check these parameters are set manully.
-        if xrate is not None:
-            xrate1 = xrate
-        if yrate is not None:
-            yrate1 = yrate
-        # set figure size
-        height, width = self.page.body_size
-        width1 = width * xrate1
-        height1 = height * yrate1
-        self.fig.set_size_inches(width1, height1)
+        if rate_x is not None:
+            rate_x1 = rate_x
+        if rate_y is not None:
+            rate_y1 = rate_y
 
-    def save(self, savename: str, bbox_inches=None, dpi=None):
+        # compute figure size
+        page_height, page_width = self.page.body_size
+        fig_width = page_width * rate_x1
+        fig_height = page_height * rate_y1
+        return fig_width, fig_height
+
+    def set_figure_size(self, rate_x=None, rate_y=None):
+        width, height = self.get_proper_fig_size(rate_x, rate_y)
+        self.fig.set_size_inches(width, height)
+
+    def save(self, savename: str, bbox_inches="tight", dpi=300, **kwargs):
         """Save the figure in .svg format."""
+        # 300 is usually minimum requirement for high resolution images, 600 is better
+
         # format of save name should be "directory/figure.svg"
         format = savename.split(".")[-1]
         assert format == "svg" or format == "png"
 
-        # if dpi is not assigned external, use dpi store in this class
-        if dpi is None:
-            dpi = self.__dpi
-
         # ! Warning: only the given portion of the figure is saved
-        # ! This will change size of the figure when saving
-        if bbox_inches is None:
-            bbox_inches = self.__bbox_inches
-        self.fig.savefig(savename, bbox_inches=bbox_inches, dpi=dpi)
-
+        # ! bbox_inches will change size of the figure when saving
+        self.fig.savefig(savename, bbox_inches=bbox_inches, dpi=dpi, **kwargs)
         # self.fig.savefig(savename, dpi=dpi)
 
     def change_page(self, newpage=PageSlide()):
         # modify paper size, such as from A4 to a slide in 16:9
         self.page = newpage
-        self.arrange()
+        self.set_figure_size()
 
     def stretch_figure_height(self, ratio: float) -> None:
         width, height = self.fig.get_size_inches()
         self.fig.set_size_inches(width, height * ratio)
+
+    def stretch_figure_width(self, ratio: float) -> None:
+        # should be rarely used, only for 1x1 figure.
+        width, height = self.fig.get_size_inches()
+        self.fig.set_size_inches(width * ratio, height)
+
+    def corner_annotate(
+        self,
+        ax: plt.Axes,
+        content: str,
+        pad: float = 0.05,  # unit: inch
+        horizontal: str = "left",
+        vertical: str = "top",
+        **kwargs,
+    ) -> None:
+        """_summary_
+
+        Args:
+            ax (plt.Axes): _description_
+            content (str): _description_
+            pad (float, optional): _description_. Defaults to 0.05.
+            vertical (str, optional): _description_. Defaults to "top".
+
+        Raises:
+            ValueError: _description_
+        """
+
+        if horizontal == "left" and vertical == "top":
+            dx = pad
+            dy = -dx
+        else:
+            raise ValueError("Not finished yet.")
+
+        # * create the transformer to properly place the annotate
+        # * https://matplotlib.org/stable/users/explain/artists/transforms_tutorial.html
+        # transformer1 will transform the translation (dx, dy) from unit in inch to pixel
+        # i.e., from **"figure-inches" coordinate system** from to **display coordinate system**.
+        transformer1 = ScaledTranslation(dx, dy, self.fig.dpi_scale_trans)
+
+        # transformer2 firstly applies `ax.transAxes`` to transform a coordinate from **axes coordinate system**
+        # to **display coordinate system**, then apply transformer1.
+        # Note the unit of the display coordinate is usually **pixel**, but depends on the backend.
+        transformer2 = ax.transAxes + transformer1
+
+        # * add annotate to the sub-figure with the transformer
+        ax.text(
+            0,
+            1,
+            content,
+            size=MEDIUM_SIZE,  # font size
+            # weight="bold",
+            ha="left",  # horizontal alignment
+            va="top",  # vertical alignment
+            transform=transformer2,
+            **kwargs,
+        )
 
 
 def get_default_color(type="rgb") -> list:
@@ -278,15 +363,29 @@ def get_default_color(type="rgb") -> list:
     return lst
 
 
-def legend(ax):
-    ax.legend(frameon=False)  # remove legend background
+def enable_minor_locator(ax: plt.Axes, n=5):
+    ax.xaxis.set_minor_locator(AutoMinorLocator(n))
+    ax.yaxis.set_minor_locator(AutoMinorLocator(n))
 
 
-def legend_subplot(fig, lines: list, labels: list[str], height_ratio=1.03, label_per_row=8) -> None:
+def enable_axes_legend(ax: plt.Axes, **kwargs):
+    ax.legend(frameon=False, **kwargs)  # remove legend background
+
+
+def enable_figure_legend(
+    fig, lines: list, labels: list[str], height_ratio=1.0, placeholder_size=0.3, label_per_row=8, **kwargs
+) -> None:
     # add a legend for all plot
     # https://stackoverflow.com/questions/27016904/matplotlib-legends-in-subplot
     # https://matplotlib.org/stable/gallery/text_labels_and_annotations/legend_demo.html
 
+    # reserve space for legend by creating an empty figure title
+    # Note that for .py, legend will not be shown inside the figure if anchor > 1,
+    # but Jupyter will show it by making figure larger.
+    font_size = placeholder_size * 70  # convert from inch to font size
+    fig.suptitle(" ", alpha=0.0, size=font_size)
+
+    # add the legend
     fig.legend(
         lines,
         labels,
@@ -294,46 +393,24 @@ def legend_subplot(fig, lines: list, labels: list[str], height_ratio=1.03, label
         frameon=False,
         # distance to center of the text box (both horizontal and vertical)
         bbox_to_anchor=(0.5, height_ratio),
+        # bbox_transform=fig.transFigure,
         ncol=label_per_row,
+        fontsize=MEDIUM_SIZE,
+        **kwargs,
     )
 
 
-def set_tick_number_x(tick_number: int, ax) -> None:
+def set_tick_number_x(tick_number: int, ax: plt.Axes) -> None:
     loc = MaxNLocator(tick_number)
     ax.xaxis.set_major_locator(loc)
 
 
-def set_tick_number_y(tick_number: int, ax) -> None:
+def set_tick_number_y(tick_number: int, ax: plt.Axes) -> None:
     loc = MaxNLocator(tick_number)
     ax.yaxis.set_major_locator(loc)
 
 
-def cornor_annotate(
-    ax,
-    text: str,
-    ratio: float = 0.02,
-    text_size: float = 10,
-    horizontal: str = "left",
-    vertical: str = "top",
-):
-    # control distance from top left corner
-
-    # get proper position for text
-    if horizontal == "left" and vertical == "top":
-        x_min, x_max = ax.get_xlim()
-        y_min, y_max = ax.get_ylim()
-        x_range = x_max - x_min
-        y_range = y_max - y_min
-        # coordinate of top left corner of the text box
-        x = x_min + ratio * x_range
-        y = y_max - ratio * y_range
-    else:
-        raise ValueError("Not finished yet.")
-
-    ax.text(x, y, text, size=text_size, horizontalalignment=horizontal, verticalalignment=vertical)
-
-
-def more_space(ax, direction: str, ratio: float = 0.1) -> None:
+def more_space(ax: plt.Axes, direction: str, ratio: float = 0.1) -> None:
     # leave more space at certain direction of an ax, usually for add a figure index or legend
     assert direction in ["left", "right", "top", "bottom"]
 
@@ -356,19 +433,93 @@ def more_space(ax, direction: str, ratio: float = 0.1) -> None:
         raise ValueError()
 
 
-def set_equal_ylim(ax_list: list):
-    # usually for hiding shared y-axis when plotting 3x3, 4x4 figure
+def set_equal_ylim(ax_in_row: list[plt.Axes]) -> None:
+    """Set a row of sub-figures with same y limit by sharing their y-axis.
+    Usually for hiding shared y-axis when plotting 3x3, 4x4 figure.
 
-    # * find maximum limits of y axis for all axes in ax_list
-    ymin = 1e8
-    ymax = -1e8
-    for ax in ax_list:
-        ymin = min(ymin, ax.get_ylim()[0])
-        ymax = max(ymax, ax.get_ylim()[1])
+    Note: here we assume the left most sub-figure is the main sub-figure, of which y axis is reserved.
+    Other sub-figures are attached to the main sub-figures and their y axis are hidden.
 
-    # * set to all
-    for ax in ax_list:
-        ax.set_ylim(ymin, ymax)
+    Args:
+        ax_in_row (list[plt.Axes]): a row of sub-figures in a matrix of sub-figures.
+    """
+
+    ax_main = ax_in_row[0]
+    for ax in ax_in_row[1:]:
+        ax.sharey(ax_main)  # attach y axis of ax to ax1
+        ax.get_yaxis().set_visible(False)  # hide y axis
+
+
+def set_equal_xlim(ax_in_col: list[plt.Axes]) -> None:
+    """Set a column of sub-figures with same x limit by sharing their x-axis.
+    Usually for hiding shared x-axis when plotting 3x3, 4x4 figure.
+
+    Note: here we assume the bottom most sub-figure is the main sub-figure, of which x axis is reserved
+    Other sub-figures are attached to the main sub-figures and their x axis are hidden.
+
+    Args:
+        ax_in_col (list[plt.Axes]): a column of sub-figures in a matrix of sub-figures.
+    """
+    ax_main = ax_in_col[-1]
+    for ax in ax_in_col[:-1]:
+        ax.sharex(ax_main)  # attach x axis of ax to ax1
+        ax.get_xaxis().set_visible(False)  # hide x axis
+
+
+def ticks_align_limits_x(ax: plt.Axes, thresholdRatio=0.1) -> None:
+
+    # Call this in the end.
+
+    # Align ticks with end of x & y axis, assume smaller end is already set to 0.
+    # Thus, only need to adjust the larger end.
+
+    # If
+
+    # x axis
+    # The locations are not clipped to the current axis limits and hence
+    # may contain locations that are not visible in the output.
+    xTicks: np.ndarray = ax.get_xticks()
+
+    xmin, xmax = ax.get_xlim()
+    # print(xTicks)
+    if xTicks[-2] < xmax <= xTicks[-1]:
+        dx = xTicks[-1] - xTicks[-2]
+        if (xmax - xTicks[-2]) / dx < thresholdRatio:
+            xmaxNew = xTicks[-2]
+            # print('1')
+        else:
+            xmaxNew = xTicks[-1]
+            # print("2")
+        # print(xmin, xmaxNew)
+        ax.set_xlim(xmin, xmaxNew)
+    else:
+        message = "Get %f < %f < %f" % (xTicks[-2], xmax, xTicks[-1])
+        assert False, message
+
+
+def ticks_align_limits_y(ax: plt.Axes, thresholdRatio=0.1) -> None:
+    yTicks: np.ndarray = ax.get_yticks()
+
+    ymin, ymax = ax.get_ylim()
+    # print(yTicks)
+    if yTicks[-2] < ymax <= yTicks[-1]:
+        dx = yTicks[-1] - yTicks[-2]
+        if (ymax - yTicks[-2]) / dx < thresholdRatio:
+            ymaxNew = yTicks[-2]
+            # print("1")
+        else:
+            ymaxNew = yTicks[-1]
+            # print("2")
+        # print(ymin, ymaxNew)
+        ax.set_ylim(ymin, ymaxNew)
+    else:
+        assert False
+
+    # y axis
+    # yTicks: np.ndarray = ax.get_yticks()
+    # newTick = 2 * yTicks[-1] - yTicks[-2]
+    # yTicksNew = np.append(yTicks, newTick)
+    # ax.set_yticks(yTicksNew)
 
 
 # * check whether font exist
