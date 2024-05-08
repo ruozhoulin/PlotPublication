@@ -305,6 +305,7 @@ class FigurePublication:
         self,
         ax: plt.Axes,
         content: str,
+        font_size=MEDIUM_SIZE,
         pad: float = 0.05,  # unit: inch
         horizontal: str = "left",
         vertical: str = "top",
@@ -344,7 +345,7 @@ class FigurePublication:
             0,
             1,
             content,
-            size=MEDIUM_SIZE,  # font size
+            size=font_size,  # font size
             # weight="bold",
             ha="left",  # horizontal alignment
             va="top",  # vertical alignment
@@ -400,14 +401,49 @@ def enable_figure_legend(
     )
 
 
-def set_tick_number_x(tick_number: int, ax: plt.Axes) -> None:
-    loc = MaxNLocator(tick_number)
-    ax.xaxis.set_major_locator(loc)
+# def set_tick_number_x(tick_number: int, ax: plt.Axes) -> None:
+#     loc = MaxNLocator(tick_number)
+#     ax.xaxis.set_major_locator(loc)
 
 
-def set_tick_number_y(tick_number: int, ax: plt.Axes) -> None:
-    loc = MaxNLocator(tick_number)
-    ax.yaxis.set_major_locator(loc)
+# def set_tick_number_y(tick_number: int, ax: plt.Axes) -> None:
+#     loc = MaxNLocator(tick_number)
+#     ax.yaxis.set_major_locator(loc)
+def set_axis(ax: plt.Axes, axis: str, start: float, end: float, num_ticks: int = 0) -> None:
+    """For x- or y-axis, specify its range (or limit), let the first and the last ticks
+    align with the end of spines, and specify the number of ticks.
+
+    Args:
+        ax (plt.Axes): _description_
+        axis (str): the axis to be modified
+        start (float): the start of axis limit
+        end (float): the end of axis limit
+        num_ticks (int, optional): the number of ticks. Defaults to 0.
+
+    Raises:
+        ValueError: _description_
+    """
+
+    # * Space ticks evenly from min to max using `LinearLocator()`.
+    # Let Matplotlib decides the number of ticks
+    if num_ticks == 0:
+        loc = matplotlib.ticker.LinearLocator()
+        # ax.xaxis.get_major_locator().set_params(numticks=5) # adjust the number of ticks later
+
+    # Use the user-specified value
+    elif num_ticks >= 2:
+        loc = matplotlib.ticker.LinearLocator(numticks=num_ticks)
+
+    # The value is invalid
+    else:
+        raise ValueError("The number of ticks must be no smaller than 2 but %f is provided" % num_ticks)
+
+    if axis == "x":
+        ax.xaxis.set_major_locator(loc)
+        ax.set_xlim(start, end)
+    elif axis == "y":
+        ax.yaxis.set_major_locator(loc)
+        ax.set_ylim(start, end)
 
 
 def more_space(ax: plt.Axes, direction: str, ratio: float = 0.1) -> None:
@@ -466,60 +502,60 @@ def set_equal_xlim(ax_in_col: list[plt.Axes]) -> None:
         ax.get_xaxis().set_visible(False)  # hide x axis
 
 
-def ticks_align_limits_x(ax: plt.Axes, thresholdRatio=0.1) -> None:
+# def ticks_align_limits_x(ax: plt.Axes, thresholdRatio=0.1) -> None:
 
-    # Call this in the end.
+#     # Call this in the end.
 
-    # Align ticks with end of x & y axis, assume smaller end is already set to 0.
-    # Thus, only need to adjust the larger end.
+#     # Align ticks with end of x & y axis, assume smaller end is already set to 0.
+#     # Thus, only need to adjust the larger end.
 
-    # If
+#     # If
 
-    # x axis
-    # The locations are not clipped to the current axis limits and hence
-    # may contain locations that are not visible in the output.
-    xTicks: np.ndarray = ax.get_xticks()
+#     # x axis
+#     # The locations are not clipped to the current axis limits and hence
+#     # may contain locations that are not visible in the output.
+#     xTicks: np.ndarray = ax.get_xticks()
 
-    xmin, xmax = ax.get_xlim()
-    # print(xTicks)
-    if xTicks[-2] < xmax <= xTicks[-1]:
-        dx = xTicks[-1] - xTicks[-2]
-        if (xmax - xTicks[-2]) / dx < thresholdRatio:
-            xmaxNew = xTicks[-2]
-            # print('1')
-        else:
-            xmaxNew = xTicks[-1]
-            # print("2")
-        # print(xmin, xmaxNew)
-        ax.set_xlim(xmin, xmaxNew)
-    else:
-        message = "Get %f < %f < %f" % (xTicks[-2], xmax, xTicks[-1])
-        assert False, message
+#     xmin, xmax = ax.get_xlim()
+#     # print(xTicks)
+#     if xTicks[-2] < xmax <= xTicks[-1]:
+#         dx = xTicks[-1] - xTicks[-2]
+#         if (xmax - xTicks[-2]) / dx < thresholdRatio:
+#             xmaxNew = xTicks[-2]
+#             # print('1')
+#         else:
+#             xmaxNew = xTicks[-1]
+#             # print("2")
+#         # print(xmin, xmaxNew)
+#         ax.set_xlim(xmin, xmaxNew)
+#     else:
+#         message = "Get %f < %f < %f" % (xTicks[-2], xmax, xTicks[-1])
+#         assert False, message
 
 
-def ticks_align_limits_y(ax: plt.Axes, thresholdRatio=0.1) -> None:
-    yTicks: np.ndarray = ax.get_yticks()
+# def ticks_align_limits_y(ax: plt.Axes, thresholdRatio=0.1) -> None:
+#     yTicks: np.ndarray = ax.get_yticks()
 
-    ymin, ymax = ax.get_ylim()
-    # print(yTicks)
-    if yTicks[-2] < ymax <= yTicks[-1]:
-        dx = yTicks[-1] - yTicks[-2]
-        if (ymax - yTicks[-2]) / dx < thresholdRatio:
-            ymaxNew = yTicks[-2]
-            # print("1")
-        else:
-            ymaxNew = yTicks[-1]
-            # print("2")
-        # print(ymin, ymaxNew)
-        ax.set_ylim(ymin, ymaxNew)
-    else:
-        assert False
+#     ymin, ymax = ax.get_ylim()
+#     # print(yTicks)
+#     if yTicks[-2] < ymax <= yTicks[-1]:
+#         dx = yTicks[-1] - yTicks[-2]
+#         if (ymax - yTicks[-2]) / dx < thresholdRatio:
+#             ymaxNew = yTicks[-2]
+#             # print("1")
+#         else:
+#             ymaxNew = yTicks[-1]
+#             # print("2")
+#         # print(ymin, ymaxNew)
+#         ax.set_ylim(ymin, ymaxNew)
+#     else:
+#         assert False
 
-    # y axis
-    # yTicks: np.ndarray = ax.get_yticks()
-    # newTick = 2 * yTicks[-1] - yTicks[-2]
-    # yTicksNew = np.append(yTicks, newTick)
-    # ax.set_yticks(yTicksNew)
+#     # y axis
+#     # yTicks: np.ndarray = ax.get_yticks()
+#     # newTick = 2 * yTicks[-1] - yTicks[-2]
+#     # yTicksNew = np.append(yTicks, newTick)
+#     # ax.set_yticks(yTicksNew)
 
 
 # * check whether font exist
